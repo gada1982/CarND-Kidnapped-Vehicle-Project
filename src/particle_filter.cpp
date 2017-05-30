@@ -20,19 +20,80 @@
 using namespace std;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
-	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
-	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
-	// Add random Gaussian noise to each particle.
-	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
+  // Define the number of particles and create an array with this size.
+  num_particles = 100;
+  
+  // Create a generator for adding random Gaussian noise
+  default_random_engine gen;
 
+  // Creates a normal (Gaussian) distribution for x with GPS as mean
+  normal_distribution <double> dist_x(x, std[0]);
+  
+  // Creates a normal (Gaussian) distribution for y with GPS as mean
+  normal_distribution <double> dist_y(y, std[1]);
+  
+  // Creates a normal (Gaussian) distribution for theta with GPS as mean
+  normal_distribution <double> dist_theta(theta, std[2]);
+  
+  // Initialize all particles
+  for (int i = 0; i < num_particles; i++)
+  {
+    // Create tempory object
+    Particle particleObject;
+    
+    // Set id
+    particleObject.id = i;
+    
+    // Add random Gaussian noise
+    particleObject.x = dist_x(gen);
+    particleObject.y = dist_y(gen);
+    particleObject.theta = dist_theta(gen);
+    
+    // Set initial weight
+    particleObject.weight = 1.0;
+    
+    // Add object to vector
+    particles.push_back(particleObject);
+  }
+
+  is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
-	// TODO: Add measurements to each particle and add random Gaussian noise.
-	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
-	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-	//  http://www.cplusplus.com/reference/random/default_random_engine/
-
+  // Create a generator for adding random Gaussian noise
+  default_random_engine gen;
+  
+  // Creates a normal (Gaussian) distribution for x with GPS as mean
+  normal_distribution <double> dist_x(0, std_pos[0]);
+  
+  // Creates a normal (Gaussian) distribution for y with GPS as mean
+  normal_distribution <double> dist_y(0, std_pos[1]);
+  
+  // Creates a normal (Gaussian) distribution for theta with GPS as mean
+  normal_distribution <double> dist_theta(0, std_pos[2]);
+  
+  // Calculate sub-terms
+  const double v_diff_yaw_rate = velocity / yaw_rate;
+  const double yaw_rate_mul_delta_t = yaw_rate * delta_t;
+  
+  // Initialize all particles
+  for (int i = 0; i < num_particles; i++)
+  {
+    // Get _0 data from a single particle
+    const double x_0 = particles[i].x;
+    const double y_0 = particles[i].y;
+    const double theta_0 = particles[i].theta;
+    
+    // Calculate _f data for a single particle
+    const double x_f = x_0 + v_diff_yaw_rate*(sin(theta_0 + yaw_rate_mul_delta_t) - cos(theta_0));
+    const double y_f = y_0 + v_diff_yaw_rate*(cos(theta_0) - cos(theta_0 + yaw_rate_mul_delta_t));
+    const double theta_f = theta_0 + yaw_rate_mul_delta_t;
+    
+    // Add random Gaussian noise
+    particles[i].x = x_f + dist_x(gen);
+    particles[i].y = y_f + dist_y(gen);
+    particles[i].theta = theta_f + dist_theta(gen);
+  }
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
