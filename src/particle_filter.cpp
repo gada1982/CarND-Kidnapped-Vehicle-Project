@@ -136,6 +136,48 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+  
+  // Set standard deviation in x and y direction --> description in particle_filter.h is wrong (not allowed to change)
+  const double std_x = std_landmark[0];
+  const double std_y = std_landmark[1];
+  
+  // Precalculate const diff-terms
+  const double diff_term_x_y = 1.0 / (2.0 * M_PI * std_x * std_y);
+  const double diff_term_x = 2.0 * pow(std_x, 2);
+  const double diff_term_y = 2.0 * pow(std_y, 2);
+  
+  // Update weights for each particle
+  for (int i = 0; i < num_particles; i++)
+  {
+    // Get the data for a single particle
+    const double part_x = particles[i].x;
+    const double part_y = particles[i].y;
+    const double part_theta = particles[i].theta;
+    
+    // Create a vector of landmarks which are in sensor-range
+    vector<LandmarkObs> lm_sensor_range;
+    
+    
+    for (int j = 0; j < map_landmarks.landmark_list.size(); i++)
+    {
+      // Create tempory object
+      LandmarkObs temp_LandmarkOb;
+      
+      temp_LandmarkOb.id = map_landmarks.landmark_list[j].id_i;
+      temp_LandmarkOb.x = map_landmarks.landmark_list[j].x_f;
+      temp_LandmarkOb.y = map_landmarks.landmark_list[j].y_f;
+      
+      const double dist_lm_part = dist(temp_LandmarkOb.x, temp_LandmarkOb.y, part_x, part_y);
+      
+      // Only add to vector if in sensor range
+      if(dist_lm_part < sensor_range)
+      {
+        lm_sensor_range.push_back(temp_LandmarkOb);
+      }
+    }
+
+    
+  }
 }
 
 void ParticleFilter::resample() {
