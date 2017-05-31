@@ -142,7 +142,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   const double std_y = std_landmark[1];
   
   // Precalculate const diff-terms
-  const double diff_term_x_y = 1.0 / (2.0 * M_PI * std_x * std_y);
+  const double mult_term_x_y = 1.0 / (2.0 * M_PI * std_x * std_y);
   const double diff_term_x = 2.0 * pow(std_x, 2);
   const double diff_term_y = 2.0 * pow(std_y, 2);
   
@@ -155,10 +155,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     const double part_theta = particles[i].theta;
     
     // Create a vector of landmarks which are in sensor-range
-    vector<LandmarkObs> lm_sensor_range;
-    
-    
-    for (int j = 0; j < map_landmarks.landmark_list.size(); i++)
+    vector<LandmarkObs> lm_obs_sensor_range;
+    for (int j = 0; j < map_landmarks.landmark_list.size(); j++)
     {
       // Create tempory object
       LandmarkObs temp_LandmarkOb;
@@ -170,14 +168,55 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       const double dist_lm_part = dist(temp_LandmarkOb.x, temp_LandmarkOb.y, part_x, part_y);
       
       // Only add to vector if in sensor range
-      if(dist_lm_part < sensor_range)
+      if(dist_lm_part <= sensor_range)
       {
-        lm_sensor_range.push_back(temp_LandmarkOb);
+        lm_obs_sensor_range.push_back(temp_LandmarkOb);
       }
-    }
-
+    }  // End for-loop landmark in sensor range
     
-  }
+    // Transform observations from vehicle's coordinate system into map's coordinate system.
+    vector<LandmarkObs> observations_map_coord;
+    for (int j = 0; j < observations.size(); j++)
+    {
+      // Create tempory object
+      LandmarkObs temp_Obs;
+      
+      const double obs_x = observations[j].x;
+      const double obs_y = observations[j].y;
+      
+      temp_Obs.id = observations[j].id;
+      temp_Obs.x = obs_x*cos(part_theta) - obs_y*sin(part_theta) + part_x;
+      temp_Obs.y = obs_x*sin(part_theta) + obs_y*cos(part_theta) + part_y;
+      
+      observations_map_coord.push_back(temp_Obs);
+    } // End for-loop Transform coordinate system
+    
+    // Apply association between transformed observations an landmarks within sensor range
+    dataAssociation(lm_obs_sensor_range, observations_map_coord);
+    
+    // Calculate the weight of each single particle
+    // Set particle-weight to initial 1.0
+    particles[i].weight = 1.0;
+    for (int j = 0; j < observations_map_coord.size(); j++)
+    {
+      const int i_obs = observations_map_coord[j].id;
+      // TODO -> i_obs == j???
+      
+      // Calculate sub-terms
+      const double calc_x = pow(lm_obs_sensor_range[i_obs].x - observations_map_coord[j].x, 2);
+      const double calc_y = pow(lm_obs_sensor_range[i_obs].y - observations_map_coord[j].y, 2);
+      const double calc_exp = calc_x/diff_term_x + calc_y/diff_term_y;
+      
+      // Calculate weight from a single observation
+      const double calc_single_weight = mult_term_x_y * exp(-1 * calc_exp);
+      
+      // Calculate particles final weight
+      particles[i].weight *= calc_single_weight;
+    
+    } // End for-loop calculation of particles final weight out of the weight from a single observation
+  
+  } // End for-loop to update weights for all particle
+
 }
 
 void ParticleFilter::resample() {
