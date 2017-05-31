@@ -126,17 +126,6 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
 		std::vector<LandmarkObs> observations, Map map_landmarks) {
-	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
-	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-	//   according to the MAP'S coordinate system. You will need to transform between the two systems.
-	//   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
-	//   The following is a good resource for the theory:
-	//   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-	//   and the following is a good resource for the actual equation to implement (look at equation 
-	//   3.33
-	//   http://planning.cs.uiuc.edu/node99.html
-  
   // Set standard deviation in x and y direction --> description in particle_filter.h is wrong (not allowed to change)
   const double std_x = std_landmark[0];
   const double std_y = std_landmark[1];
@@ -220,10 +209,39 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 }
 
 void ParticleFilter::resample() {
-	// TODO: Resample particles with replacement with probability proportional to their weight. 
-	// NOTE: You may find std::discrete_distribution helpful here.
+	// Resample particles with replacement with probability proportional to their weight.
+	// NOTE: Details about std::discrete_distribution can be found here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+  
+  // Create a random number generator
+  random_device rd;
+  mt19937 gen(rd());
+  
+  // Get a vector with all the weights
+  vector<double> vec_weights;
+  for (int i = 0; i < num_particles; i++) {
+    vec_weights.push_back(particles[i].weight);
+  }
+  
+  // Create a distribution
+  discrete_distribution<> distr(vec_weights.begin(), vec_weights.end());
+  
+  // Generate re-sampled particles
+  vector<Particle> resampled_particles;
+  for (int i = 0; i < num_particles; i++)
+  {
+    // Create tempory object
+    Particle temp_Particle;
+    
+    // Choose a new particle according to the distribution
+    const int i_new = distr(gen);
+    temp_Particle = particles[i_new];
+    
+    resampled_particles.push_back(temp_Particle);
+  } // End for-loop Transform coordinate system
 
+  // Set the updated particles
+  particles = resampled_particles;
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
